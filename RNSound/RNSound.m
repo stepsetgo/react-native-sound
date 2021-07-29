@@ -175,7 +175,9 @@ RCT_EXPORT_METHOD(setCategory
                      withOptions:AVAudioSessionCategoryOptionMixWithOthers
                            error:nil];
         } else {
-            [session setCategory:category error:nil];
+            [session setCategory:category
+                     withOptions:AVAudioSessionCategoryOptionDuckOthers
+                           error:nil];
         }
     }
 }
