@@ -30,11 +30,11 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
     final static Object NULL = null;
     Map<Double, MediaPlayer> playerPool = new HashMap<>();
     ReactApplicationContext context;
-    String category;
+    Integer category;
     Boolean mixWithOthers = true;
     Double focusedPlayerKey;
     Boolean wasPlayingBeforeFocusChange = false;
-    private AudioFocusRequest focusRequest;
+    //    private AudioFocusRequest focusRequest;
     private AudioManager.OnAudioFocusChangeListener focusChangeListener =
         new AudioManager.OnAudioFocusChangeListener() {
             public void onAudioFocusChange(int focusChange) {
@@ -78,6 +78,7 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void prepare(final String fileName, final Double key, final ReadableMap options, final Callback callback) {
+
         MediaPlayer player = createMediaPlayer(fileName);
         if (player == null) {
             WritableMap e = Arguments.createMap();
@@ -91,50 +92,28 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
         final RNSoundModule module = this;
 
         if (module.category != null) {
-            Integer category = null;
             Integer usage = null; // TO DO UPDATE USAGE
-            switch (module.category) {
-                case "Playback":
-                    category = AudioAttributes.CONTENT_TYPE_MUSIC;
-                    break;
-                case "Ambient":
-                    category = AudioAttributes.CONTENT_TYPE_MOVIE;
-                    break;
-                case "System":
-                    category = AudioAttributes.CONTENT_TYPE_UNKNOWN;
-                    ;
-                    break;
-                case "Voice":
-                    category = AudioAttributes.CONTENT_TYPE_SPEECH;
-                    ;
-                    break;
-                case "Ring":
-                    category = AudioAttributes.CONTENT_TYPE_UNKNOWN;
-                    ;
-                    break;
-                case "Alarm":
-                    category = AudioAttributes.CONTENT_TYPE_UNKNOWN;
-                    break;
-                default:
-                    Log.e("RNSoundModule", String.format("Unrecognised category %s", module.category));
-                    break;
-            }
-            if (category != null) {
-                AudioAttributes playbackAttributes = new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(category)
-                    .build();
-                player.setAudioAttributes(playbackAttributes);
 
-                if (!module.mixWithOthers) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-                            .setAudioAttributes(playbackAttributes)
-                            .setOnAudioFocusChangeListener(this.focusChangeListener)
-                            .build();
-                    }
+            AudioAttributes playbackAttributes = null;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                playbackAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(module.category)
+                    .build();
+
+                player.setAudioAttributes(playbackAttributes);
+            }
+
+            if (!module.mixWithOthers) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
+                    AudioFocusRequest focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                        .setAudioAttributes(playbackAttributes)
+                        .setOnAudioFocusChangeListener(this.focusChangeListener)
+                        .build();
                 }
             }
+
         }
 
         player.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
@@ -206,11 +185,16 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
         }
 
         if (fileName.startsWith("http://") || fileName.startsWith("https://")) {
-            AudioAttributes playbackAttributes = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build();
-            mediaPlayer.setAudioAttributes(playbackAttributes);
+            AudioAttributes playbackAttributes = null;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                playbackAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build();
+
+                mediaPlayer.setAudioAttributes(playbackAttributes);
+            }
+
             Log.i("RNSoundModule", fileName);
             try {
                 mediaPlayer.setDataSource(fileName);
@@ -235,11 +219,16 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
 
         File file = new File(fileName);
         if (file.exists()) {
-            AudioAttributes playbackAttributes = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build();
-            mediaPlayer.setAudioAttributes(playbackAttributes);
+            AudioAttributes playbackAttributes = null;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                playbackAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build();
+
+                mediaPlayer.setAudioAttributes(playbackAttributes);
+            }
+
             Log.i("RNSoundModule", fileName);
             try {
                 mediaPlayer.setDataSource(fileName);
@@ -256,6 +245,7 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void play(final Double key, final Callback callback) {
         MediaPlayer player = this.playerPool.get(key);
+        final RNSoundModule module = this;
         if (player == null) {
             setOnPlay(false, key);
             if (callback != null) {
@@ -274,7 +264,17 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
             int audioFocusRequest;
             this.focusedPlayerKey = key;
             AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
+
+                AudioAttributes playbackAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(module.category)
+                    .build();
+                AudioFocusRequest focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                    .setAudioAttributes(playbackAttributes)
+                    .setOnAudioFocusChangeListener(this.focusChangeListener)
+                    .build();
                 audioFocusRequest = audioManager.requestAudioFocus(focusRequest);
             } else {
                 audioFocusRequest = audioManager.requestAudioFocus(focusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
@@ -289,6 +289,7 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
             }
         }
 
+
         player.setOnCompletionListener(new OnCompletionListener() {
             boolean callbackWasCalled = false;
 
@@ -296,7 +297,16 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
             public synchronized void onCompletion(MediaPlayer mp) {
                 if (!mixWithOthers) {
                     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
+                        AudioAttributes playbackAttributes = new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(module.category)
+                            .build();
+                        AudioFocusRequest focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                            .setAudioAttributes(playbackAttributes)
+                            .setOnAudioFocusChangeListener(focusChangeListener)
+                            .build();
                         audioManager.abandonAudioFocusRequest(focusRequest);
                     } else {
                         audioManager.abandonAudioFocus(focusChangeListener);
@@ -321,7 +331,16 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
             @Override
             public synchronized boolean onError(MediaPlayer mp, int what, int extra) {
                 AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
+                    AudioAttributes playbackAttributes = new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(module.category)
+                        .build();
+                    AudioFocusRequest focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                        .setAudioAttributes(playbackAttributes)
+                        .setOnAudioFocusChangeListener(focusChangeListener)
+                        .build();
                     audioManager.abandonAudioFocusRequest(focusRequest);
                 } else {
                     audioManager.abandonAudioFocus(focusChangeListener);
@@ -357,6 +376,7 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void stop(final Double key, final Callback callback) {
         MediaPlayer player = this.playerPool.get(key);
+        final RNSoundModule module = this;
         if (player != null && player.isPlaying()) {
             player.pause();
             player.seekTo(0);
@@ -365,7 +385,15 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
         // Release audio focus in Android system
         if (!this.mixWithOthers && key == this.focusedPlayerKey) {
             AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                AudioAttributes playbackAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(module.category)
+                    .build();
+                AudioFocusRequest focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                    .setAudioAttributes(playbackAttributes)
+                    .setOnAudioFocusChangeListener(focusChangeListener)
+                    .build();
                 audioManager.abandonAudioFocusRequest(focusRequest);
             } else {
                 audioManager.abandonAudioFocus(focusChangeListener);
@@ -386,6 +414,8 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void release(final Double key) {
         MediaPlayer player = this.playerPool.get(key);
+        final RNSoundModule module = this;
+
         if (player != null) {
             player.reset();
             player.release();
@@ -394,7 +424,16 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
             // Release audio focus in Android system
             if (!this.mixWithOthers && key == this.focusedPlayerKey) {
                 AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && focusRequest != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
+                    AudioAttributes playbackAttributes = new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(module.category)
+                        .build();
+                    AudioFocusRequest focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                        .setAudioAttributes(playbackAttributes)
+                        .setOnAudioFocusChangeListener(focusChangeListener)
+                        .build();
                     audioManager.abandonAudioFocusRequest(focusRequest);
                 } else {
                     audioManager.abandonAudioFocus(focusChangeListener);
@@ -491,11 +530,16 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
     public void setSpeakerphoneOn(final Double key, final Boolean speaker) {
         MediaPlayer player = this.playerPool.get(key);
         if (player != null) {
-            AudioAttributes playbackAttributes = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build();
-            player.setAudioAttributes(playbackAttributes);
+            AudioAttributes playbackAttributes = null;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                playbackAttributes = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build();
+
+                player.setAudioAttributes(playbackAttributes);
+            }
+
             AudioManager audioManager = (AudioManager) this.context.getSystemService(Context.AUDIO_SERVICE);
             if (speaker) {
                 audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
@@ -508,7 +552,31 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void setCategory(final String category, final Boolean mixWithOthers) {
-        this.category = category;
+//        this.category = category;
+
+        switch (category) {
+            case "Playback":
+                this.category = AudioAttributes.CONTENT_TYPE_MUSIC;
+                break;
+            case "Ambient":
+                this.category = AudioAttributes.CONTENT_TYPE_MOVIE;
+                break;
+            case "System":
+                this.category = AudioAttributes.CONTENT_TYPE_UNKNOWN;
+                break;
+            case "Voice":
+                this.category = AudioAttributes.CONTENT_TYPE_SPEECH;
+                break;
+            case "Ring":
+                this.category = AudioAttributes.CONTENT_TYPE_UNKNOWN;
+                break;
+            case "Alarm":
+                this.category = AudioAttributes.CONTENT_TYPE_UNKNOWN;
+                break;
+            default:
+                Log.e("RNSoundModule", String.format("Unrecognised category %s", this.category));
+                break;
+        }
         this.mixWithOthers = mixWithOthers;
     }
 
