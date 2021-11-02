@@ -43,10 +43,8 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
                     case (AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK):
                         break;
                     case (AudioManager.AUDIOFOCUS_LOSS_TRANSIENT):
-                        stopAllMusic();
                         break;
                     case (AudioManager.AUDIOFOCUS_LOSS):
-                        stopAllMusic();
                         break;
                     case (AudioManager.AUDIOFOCUS_GAIN):
                         break;
@@ -377,21 +375,6 @@ public class RNSoundModule extends ReactContextBaseJavaModule {
         }
     }
 
-    public void stopAllMusic(){
-
-        // Using for-each loop
-        for (Map.Entry<Double,MediaPlayer> mapElement : this.playerPool.entrySet()) {
-          
-           MediaPlayer player =  mapElement.getValue();
-
-           if(player == null){
-
-           } else {
-               player.stop();
-           }
-
-        }
-    }
 
     @ReactMethod
     public void stop(final Double key, final Callback callback) {
